@@ -1,0 +1,12 @@
+DELETE FROM header;
+DELETE FROM street;
+DELETE FROM street_descriptor;
+DELETE FROM basic_land_property_unit;
+DELETE FROM application_cross_reference;
+DELETE FROM local_property_identifier;
+DELETE FROM delivery_point_address;
+DELETE FROM metadata;
+DELETE FROM successor;
+DELETE FROM organisation;
+DELETE FROM classification;
+DELETE FROM trailer;
