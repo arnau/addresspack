@@ -4,16 +4,15 @@
 // This file may not be copied, modified, or distributed except
 // according to those terms.
 
-use anyhow::Result;
 use std::fmt;
 use std::str::FromStr;
 
-use super::PackError;
+use super::Error;
 
 /// Represents the SQLite pragma `synchronous`.
 ///
 /// See: https://www.sqlite.org/pragma.html#pragma_synchronous
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Synchronous {
     Off,
     Normal,
@@ -33,7 +32,7 @@ impl fmt::Display for Synchronous {
 }
 
 impl FromStr for Synchronous {
-    type Err = PackError;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -41,7 +40,7 @@ impl FromStr for Synchronous {
             "normal" => Ok(Synchronous::Normal),
             "full" => Ok(Synchronous::Full),
             "extra" => Ok(Synchronous::Extra),
-            _ => Err(PackError::Pragma(s.into())),
+            _ => Err(Error::Pragma(s.into())),
         }
     }
 }
@@ -49,7 +48,7 @@ impl FromStr for Synchronous {
 /// Represents the SQLite pragma `journal_mode`.
 ///
 /// See: https://www.sqlite.org/pragma.html#pragma_journal_mode
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Journal {
     Off,
     Delete,
@@ -73,7 +72,7 @@ impl fmt::Display for Journal {
 }
 
 impl FromStr for Journal {
-    type Err = PackError;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -83,7 +82,7 @@ impl FromStr for Journal {
             "persist" => Ok(Journal::Persist),
             "memory" => Ok(Journal::Memory),
             "wal" => Ok(Journal::Wal),
-            _ => Err(PackError::Pragma(s.into())),
+            _ => Err(Error::Pragma(s.into())),
         }
     }
 }

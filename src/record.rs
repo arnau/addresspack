@@ -8,6 +8,8 @@
 
 use serde::Deserialize;
 
+use crate::Error;
+
 type Raw = Vec<Option<String>>;
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -17,8 +19,10 @@ impl Record {
         Record(raw)
     }
 
-    pub fn table_id(&self) -> String {
-        self.0[0].clone().unwrap()
+    pub fn table_id(&self) -> Result<u32, Error> {
+        let id: u32 = self.0[0].clone().expect("The record is empty.").parse()?;
+
+        Ok(id)
     }
 
     pub fn as_slice(&self) -> &[Option<String>] {

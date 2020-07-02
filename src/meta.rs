@@ -4,11 +4,12 @@
 // This file may not be copied, modified, or distributed except
 // according to those terms.
 
-use anyhow::Result;
 use rusqlite::{Connection, NO_PARAMS};
 use std::collections::HashMap;
 
-pub type Cache = HashMap<u32, String>;
+use crate::Error;
+
+pub struct Cache(HashMap<u32, String>);
 
 static SELECT_TABLE_INFO: &str = r#"
 SELECT
@@ -21,23 +22,31 @@ GROUP BY t.id
 ORDER BY t.id;
 "#;
 
-/// Caches an insert statement for each table.
-pub fn prepare_inserts(conn: &Connection) -> Result<Cache> {
-    let mut stmt = conn.prepare(SELECT_TABLE_INFO)?;
+impl Cache {
+    /// Builds an insert statement for each table.
+    pub fn prepare(conn: &Connection) -> Result<Cache, Error> {
+        let mut stmt = conn.prepare(SELECT_TABLE_INFO)?;
 
-    let cache: Cache = stmt
-        .query_map(NO_PARAMS, |row| {
-            let id: u32 = row.get(0)?;
-            let name: String = row.get(1)?;
-            let len: u32 = row.get(2)?;
-            let vals = ["?"].repeat(len as usize);
+        let cache: HashMap<u32, String> = stmt
+            .query_map(NO_PARAMS, |row| {
+                let id: u32 = row.get(0)?;
+                let name: String = row.get(1)?;
+                let len: u32 = row.get(2)?;
+                let vals = ["?"].repeat(len as usize);
+                let statement = format!("INSERT INTO {} VALUES ({});", &name, vals.join(", "));
 
-            Ok((
-                id,
-                format!("INSERT INTO {} VALUES ({});", &name, vals.join(", ")),
-            ))
-        })?
-        .collect::<Result<_, _>>()?;
+                Ok((id, statement))
+            })?
+            .collect::<Result<_, _>>()?;
 
-    Ok(cache)
+        Ok(Cache(cache))
+    }
+
+    pub fn get(&self, table_id: u32) -> Result<&str, Error> {
+        let statement = self.0.get(&table_id).ok_or_else(|| {
+            Error::CacheError(format!("Expected a cached sql statement for {}", &table_id))
+        })?;
+
+        Ok(statement)
+    }
 }

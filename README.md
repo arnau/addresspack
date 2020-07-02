@@ -1,7 +1,7 @@
 # Addresspack
 
-This project processes a standard AddressBase Premium (full) download in CSV
-into a SQLite database.
+This project processes a standard “AddressBase Premium full (CSV)” into a
+SQLite database.
 
 
 ## Context
@@ -11,56 +11,83 @@ file that contains around 352 files with a `.csv` extension.
 
 Although these files are labelled as "csv" they are not structured as a table.
 They have to be treated as a single list of comma-separated lines where each
-one of them starts with the numeric identifier for the table they belong to.
+line starts with the numeric identifier for the table they belong to.
 
 So, to recompose the original relational model, you need to read the
 [technical specification] and create the expected schema.
 
-Perhaps you only want construct tabular CSV files and the [header files] are
-sufficient.
+If you only want construct tabular CSV files, you might be able to get away
+with just using the [header files].
 
 At this point, you need to read the given files line by line, parse each line
-as CSV, promote empty values as `NULL` perhaps, and load all ~352 million
-records into their table.
+as CSV, promote empty values as `NULL`, and load all ~352 million records into
+the expected table.
 
 
 ## Why SQLite
 
-I wouldn't qualify as good experience the journey you have to go through to
-get from what Ordnance Survey gives you as CSV to the point where you are able
-to run your first query against the AddressBase database.
+The journey you have to go through to get from what Ordnance Survey gives you
+to the point where you are able to run your first query against the
+AddressBase database can't be qualified as a good experience.
 
 SQLite is a single-file relational database with a good SQL engine. What would
 be the experience if instead of downloading the CSV zip you could instead
 download a SQLite database ready to be used? Perhaps the database could
-include some metadata and documentation sufficient to let you get an
-understanding of what is each table for and what are the relationships between
-them. Similar to what you get in the technical specification but co-located
-with the data.
+include some metadata and enough documentation to let you get an understanding
+of what is each table for and what are the relationships between them. Similar
+to what you get in the technical specification but co-located with the data.
 
 Well, Addresspack is an exercise to explore this idea.
 
-The bare schema before loading the full dataset provides `table_info` and
-`column_info` which lets you explore the basic documentation for each table
-and columns.
+The [bare schema](./src/sql/bootstrap.sql) before loading the full dataset
+provides `table_info` and `column_info` which lets you explore the basic
+documentation for each table and columns.
 
-For example, to know why the first record of each file starts with a `10`, you
-can:
+For example, to know what columns are available and what are they for for the
+table with id `10` (the first record of every CSV file starts with `10`) you
+could:
 
 ```
-sqlite3 addresspack.sqlite "select name, definition from table_info where id = 10;"
+sqlite3 addresspack.sqlite \
+"select table_info.name, column_info.id, column_info.definition \
+from column_info join table_info on column_info.table_id = table_info.id \
+where table_id = 10;"
 ```
-
-There is a knowledge gap here, you need to know that the first field of each
-CSV record is the table identifier. Why it is labelled as "RECORD_IDENTIFIER"
-in the [header files] escapes me.
 
 
 ## Getting the data
 
 The [Ordnance Survey] website has an order's section where you can buy access
-to the AddressBase Premium database. The one this repository expects is the
-CSV with Download as a delivery method.
+to the AddressBase Premium database. The one Addresspack expects is the CSV
+with Download as a delivery method.
+
+
+## Install
+
+There are no pre-build packages or bundles at the moment. You will have to
+build it yourself.
+
+
+## Build
+
+Addresspack is a [Rust] command-line interface so you need Rust to compile
+this project.
+
+Building it in release mode makes the difference performance-wise:
+
+```
+cargo build --release
+```
+
+Then, run the binary from the `target/` directory:
+
+```
+./target/release/addresspack load --help
+```
+
+
+Note: It has been tested with Rust 1.44 but it is likely that it works for
+older versions as well.
 
 
 ## Limitations
@@ -69,7 +96,7 @@ SQLite only allows a single writer so Addresspack can't use multiple threads
 to parallelise. Although I tried to make the ingestion process fast, it is
 extremely slow. In the order of hours.
 
-At the moment, a transaction is commited every 10 files (i.e. every 10,000,000
+By default, a transaction is commited every 10 files (i.e. every 10,000,000
 inserts) using the [SQLite WAL] journaling. If the process stops (e.g. you
 kill the process), you can run it again and it will resume where it stopped
 with a potential data loss of 10 million rows.
@@ -79,7 +106,7 @@ welcome to reach to me!
 
 Another limitation is that Addresspack is only able to process the full
 version of AddressBase Premium. I haven't looked at what would it mean to load
-an data update.
+a data update.
 
 ## Impracticalities
 
@@ -109,10 +136,12 @@ In any case, for more realistic queries like finding records for a particular
 slower.
 
 And of course, SQLite is a single file for the whole database which was the
-whole point of this exercise.
+main driver for this exercise.
 
 
 ## Measurements
+
+These are some numbers that might help understand the scale of the task:
 
 |file|size|
 |----|----|
@@ -151,5 +180,6 @@ Limited 2015.
 [technical specification]: https://www.ordnancesurvey.co.uk/documents/product-support/tech-spec/addressbase-premium-technical-specification.pdf
 [header files]: http://www.os.uk/docs/product-schemas/addressbase-premium-header-files.zip
 [SQLite WAL]: https://www.sqlite.org/wal.html
-[xsv]: https://github.com/BurntSushi/xsv
-[rg]: https://github.com/BurntSushi/ripgrep
+[xsv]: https://github.com/BurntSushi/xsv/
+[rg]: https://github.com/BurntSushi/ripgrep/
+[Rust]: https://www.rust-lang.org/
