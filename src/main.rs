@@ -12,16 +12,6 @@ use addresspack::cli;
 
 #[derive(Debug, Clap)]
 enum Subcommand {
-    /// Loads AddressBase CSV into SQLite.
-    ///
-    /// By default the database will be created in the current directory with the filename
-    /// `addresbase.sqlite` and will expect the decompressed CSVs to be in the `data` directory.
-    ///
-    /// By default, every 10 files (roughly 10 million records) works reasonably well with WAL
-    /// journaling as it keeps the journal file from growing too much.
-    ///
-    /// Depending on how SQLite synchronises and the journal mode, you might want to tweak the
-    /// `fpt` value.
     Load(cli::load::Cmd),
     // /// Queries AddressBase.
     // Query(cli::query::Cmd),

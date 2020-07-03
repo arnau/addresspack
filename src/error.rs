@@ -17,8 +17,6 @@ pub enum PackError {
     Csv(#[from] csv::Error),
     #[error("unexpected integer")]
     ParseInt(#[from] num::ParseIntError),
-    #[error("unexpected input")]
-    BadInput(String),
     #[error("cache error")]
     CacheError(String),
     #[error("missing table")]

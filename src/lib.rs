@@ -10,18 +10,20 @@ use itertools::Itertools;
 use rusqlite::{Connection, Error as SqlError, Transaction, NO_PARAMS};
 use std::fs;
 use std::include_str;
-use std::io;
+use std::io::{self, BufReader};
 use std::path::{Path, PathBuf};
 
+pub mod achievement;
 pub mod cli;
 pub mod error;
 pub mod meta;
 pub mod pragma;
 pub mod record;
 
-pub use crate::error::PackError as Error;
 pub use crate::meta::Cache;
-pub use crate::record::Record;
+pub use achievement::Achievement;
+pub use error::PackError as Error;
+pub use record::Record;
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -40,8 +42,8 @@ fn insert_record(record: Record, tx: &Transaction, cache: &Cache) -> Result<(), 
     Ok(())
 }
 
-fn process_csv(
-    path: &Path,
+fn process_csv<R: io::Read>(
+    reader: BufReader<R>,
     tx: &Transaction,
     cache: &Cache,
     bar: &ProgressBar,
@@ -49,7 +51,7 @@ fn process_csv(
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
         .flexible(true)
-        .from_path(&path)?;
+        .from_reader(reader);
     let mut raw_record = csv::ByteRecord::new();
 
     while rdr.read_byte_record(&mut raw_record)? {
@@ -63,71 +65,77 @@ fn process_csv(
     Ok(())
 }
 
-// TODO:
-// Expect an iterator of readers. This should decouple the process from the file system.
-// pub fn process_entries(conn: &mut Connection, &[BufReader]) -> Result<(), PackError> {
+/// Processes all given readers as CSV in chunks of `fpt`.
+pub fn process_entries<R: io::Read>(
+    entries: Vec<BufReader<R>>,
+    conn: &mut Connection,
+    fpt: usize,
+) -> Result<(), Error> {
+    let cache = Cache::prepare(&conn)?;
+    let record_amount = 1_000_000; // Roughly the amount of records per file.
+    let total_len = (entries.len() * record_amount) as u64;
+    let bar = ProgressBar::new(total_len);
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:40.yellow/white} {pos:>7}/{len:7} {msg}")
+            .progress_chars("··."),
+    );
 
-/// Processes all CSV files in the given directory.
-pub fn process_dir<'a>(conn: &mut Connection, dir: &'a Path, fpt: usize) -> Result<&'a str, Error> {
-    if !dir.is_dir() {
-        return Err(Error::BadInput(format!(
-            "{} must be a directory.",
-            dir.display()
-        )));
-    };
+    for chunk in &entries.into_iter().chunks(fpt) {
+        let tx = conn.transaction()?;
 
-    match next_index(&conn)? {
-        Some(index) => {
-            let mut entries = fs::read_dir(dir)?
-                .map(|res| res.map(|e| e.path()))
-                .collect::<Result<Vec<_>, io::Error>>()?;
-
-            entries.sort();
-
-            let processed_amount = (index - 1) as usize;
-            let pending_amount = entries.len() - processed_amount;
-            let record_amount = 1_000_000; // Roughly the amount of records per file.
-
-            if pending_amount == 0 {
-                return Ok("There are no pending records to process.");
-            }
-
-            let cache = Cache::prepare(&conn)?;
-            let bar = ProgressBar::new((pending_amount * record_amount) as u64);
-            bar.set_style(
-                ProgressStyle::default_bar()
-                    .template("[{elapsed_precise}] {bar:40.yellow/white} {pos:>7}/{len:7} {msg}")
-                    .progress_chars("··."),
-            );
-
-            for chunk in &entries
-                .iter()
-                .filter(is_csv)
-                .skip(processed_amount)
-                .chunks(fpt)
-            {
-                let tx = conn.transaction()?;
-
-                for entry in chunk {
-                    process_csv(&entry, &tx, &cache, &bar)?;
-                }
-
-                tx.commit()?;
-            }
-
-            bar.finish();
-
-            Ok("Finished processing all given records.")
+        for entry in chunk {
+            process_csv(entry, &tx, &cache, &bar)?;
         }
-        None => Ok("There are no pending records to process."),
+
+        tx.commit()?;
     }
+
+    bar.finish();
+
+    Ok(())
 }
 
-fn is_csv<'a>(entry: &'a &PathBuf) -> bool {
-    match entry.extension() {
-        Some(ext) => ext == "csv",
-        None => false,
+/// Processes all CSV files in the given directory.
+pub fn process_dir(
+    dir: &Path,
+    mut conn: &mut Connection,
+    fpt: usize,
+) -> Result<Achievement, Error> {
+    if let Some(index) = next_index(&conn)? {
+        let mut paths: Vec<PathBuf> = Vec::new();
+
+        for result in dir.read_dir()? {
+            let entry = result?;
+            let path = entry.path();
+
+            if let Some(ext) = path.extension() {
+                if ext == "csv" {
+                    paths.push(path);
+                }
+            }
+        }
+
+        paths.sort();
+
+        let processed_amount = (index - 1) as usize;
+        let pending_amount = paths.len() - processed_amount;
+
+        if pending_amount > 0 {
+            let mut entries = Vec::new();
+
+            for path in paths.iter().skip(processed_amount) {
+                let f = fs::File::open(path)?;
+                entries.push(BufReader::new(f));
+            }
+
+            process_entries(entries, &mut conn, fpt)?;
+
+            return Ok(Achievement::Done);
+        }
     }
+
+    Ok(Achievement::Noop)
 }
 
 /// Opens a SQLite database at the given path.
