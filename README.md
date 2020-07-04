@@ -67,6 +67,11 @@ with Download as a delivery method.
 There are no pre-build packages or bundles at the moment. You will have to
 build it yourself.
 
+```
+cargo install \
+  --git https://github.com/arnau/addresspack \
+  --tag v0.1.0
+```
 
 ## Build
 
