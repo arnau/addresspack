@@ -64,8 +64,8 @@ with Download as a delivery method.
 
 ## Install
 
-There are no pre-build packages or bundles at the moment. You will have to
-build it yourself.
+You can download the pre-build package for your platform from the [release
+page] or you can build and install with `cargo`:
 
 ```
 cargo install \
@@ -188,3 +188,4 @@ Limited 2015.
 [xsv]: https://github.com/BurntSushi/xsv/
 [rg]: https://github.com/BurntSushi/ripgrep/
 [Rust]: https://www.rust-lang.org/
+[release page]: https://github.com/arnau/addresspack/releases/
