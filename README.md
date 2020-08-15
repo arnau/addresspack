@@ -3,6 +3,15 @@
 This project processes a standard “AddressBase Premium full (CSV)” into a
 SQLite database.
 
+Before jumping into AddressBase details, you might want to consider [OS Open
+UPRN](https://www.ordnancesurvey.co.uk/business-government/products/open-uprn).
+It is a slim option if you only want the coordinates for a given URPN. It is
+licenced under the [Open Government Licence](http://os.uk/opendata/licence)
+and offers two options: a table-oriented CSV and a
+[GeoPackage](https://www.geopackage.org/).
+
+Notice that [AddressBase Core is also offered as GeoPackage](https://github.com/arnau/addresspack/issues/3).
+
 
 ## Context
 
