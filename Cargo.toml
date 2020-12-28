@@ -13,7 +13,7 @@ name = "addresspack"
 clap = "=3.0.0-beta.2"
 csv = "1.1"
 indicatif = { version = "0.15" }
-itertools = "0.9"
+itertools = "0.10"
 rusqlite = { version = "0.24", features = ["bundled", "functions", "limits", "load_extension"] }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
