@@ -4,7 +4,7 @@
 // This file may not be copied, modified, or distributed except
 // according to those terms.
 
-use rusqlite::{Connection, NO_PARAMS};
+use rusqlite::Connection;
 use std::collections::HashMap;
 
 use crate::Error;
@@ -28,7 +28,7 @@ impl Cache {
         let mut stmt = conn.prepare(SELECT_TABLE_INFO)?;
 
         let cache: HashMap<u32, String> = stmt
-            .query_map(NO_PARAMS, |row| {
+            .query_map([], |row| {
                 let id: u32 = row.get(0)?;
                 let name: String = row.get(1)?;
                 let len: u32 = row.get(2)?;

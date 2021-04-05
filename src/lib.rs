@@ -7,7 +7,7 @@
 use csv;
 use indicatif::{ProgressBar, ProgressStyle};
 use itertools::Itertools;
-use rusqlite::{Connection, Error as SqlError, Transaction, NO_PARAMS};
+use rusqlite::{params_from_iter, Connection, Error as SqlError, Transaction};
 use std::fs;
 use std::include_str;
 use std::io::{self, BufReader};
@@ -37,7 +37,7 @@ fn insert_record(record: Record, tx: &Transaction, cache: &Cache) -> Result<(), 
     let cached_sql = cache.get(table_id)?;
     let mut stmt = tx.prepare_cached(cached_sql)?;
 
-    stmt.execute(record.as_slice())?;
+    stmt.execute(params_from_iter(record.as_slice()))?;
 
     Ok(())
 }
@@ -172,7 +172,7 @@ pub fn next_index(conn: &Connection) -> Result<Option<u32>, Error> {
         ORDER BY next_volume_name DESC
         LIMIT 1;
         "#,
-        NO_PARAMS,
+        [],
         |row| row.get(0),
     );
 
